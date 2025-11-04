@@ -1,7 +1,12 @@
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+
 using Rps.Configs;
 using Rps.Hubs;
 
 using Serilog;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
+using ZiggyCreatures.Caching.Fusion.Serialization.NewtonsoftJson;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,10 +42,21 @@ try
         throw new NullReferenceException();
     builder.Services.Configure<RedisConfig>(builder.Configuration.GetSection("Redis"));
 
+    builder.Services.AddFusionCache()
+        .WithSerializer(
+            new FusionCacheNewtonsoftJsonSerializer()
+        )
+        .WithDistributedCache(
+            new RedisCache(new RedisCacheOptions { Configuration = redisConfig.FusionCacheRedisCache })
+        )
+        .WithBackplane(
+            new RedisBackplane(new RedisBackplaneOptions { Configuration = redisConfig.FusionCacheBackplane })
+        );
+
     // Add services to the container.
     builder.Services.AddRazorPages();
     builder.Services.AddSignalR()
-        .AddStackExchangeRedis(redisConfig.Backplane);
+        .AddStackExchangeRedis(redisConfig.SignalRBackplane);
 
     var app = builder.Build();
 

@@ -2,5 +2,7 @@
 
 public class RedisConfig
 {
-    public string Backplane { get; set; } = string.Empty;
+    public string SignalRBackplane { get; set; } = string.Empty;
+    public string FusionCacheRedisCache { get; set; } = string.Empty;
+    public string FusionCacheBackplane { get; set; } = string.Empty;
 }
