@@ -1,9 +1,12 @@
 using Microsoft.Extensions.Caching.StackExchangeRedis;
-
+using Rps;
 using Rps.Configs;
 using Rps.Hubs;
 
 using Serilog;
+
+using StackExchange.Redis;
+
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 using ZiggyCreatures.Caching.Fusion.Serialization.NewtonsoftJson;
@@ -27,6 +30,8 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
+    #region SeriLog
+
     builder.Host.UseSerilog();
 
     builder.Services.AddSerilog((services, lc) =>
@@ -34,6 +39,8 @@ try
         lc.ReadFrom.Configuration(builder.Configuration);
         lc.ReadFrom.Services(services);
     });
+    
+    #endregion
 
     Log.Information("Starting application");
 
@@ -42,21 +49,61 @@ try
         throw new NullReferenceException();
     builder.Services.Configure<RedisConfig>(builder.Configuration.GetSection("Redis"));
 
+    #region Redis
+
+    var options = new ConfigurationOptions
+    {
+        EndPoints = { redisConfig.FusionCacheRedisCache },
+        ChannelPrefix = environment
+    };
+
+    ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(options);
+    builder.Services.AddSingleton(new RedisManager(redis, environment));
+    Log.Information("Redis Connection:{IsConnected}", redis.IsConnected); // Should be true
+    #endregion
+
+    #region FusionCache
+
     builder.Services.AddFusionCache()
         .WithSerializer(
             new FusionCacheNewtonsoftJsonSerializer()
         )
         .WithDistributedCache(
-            new RedisCache(new RedisCacheOptions { Configuration = redisConfig.FusionCacheRedisCache })
+            new RedisCache(new RedisCacheOptions { Configuration = redisConfig.FusionCacheRedisCache, InstanceName = environment })
         )
         .WithBackplane(
             new RedisBackplane(new RedisBackplaneOptions { Configuration = redisConfig.FusionCacheBackplane })
-        );
+        )
+        .WithDefaultEntryOptions(new FusionCacheEntryOptions
+        {
+            Duration = TimeSpan.FromMinutes(1),
+            JitterMaxDuration = TimeSpan.FromSeconds(10)
+        });
+    builder.Services.ConfigureAll<FusionCacheOptions>(opts => opts.CacheKeyPrefix = $"{environment}:{opts.CacheName}:");
+
+    #endregion
 
     // Add services to the container.
     builder.Services.AddRazorPages();
+
+    #region SignalR
+
     builder.Services.AddSignalR()
-        .AddStackExchangeRedis(redisConfig.SignalRBackplane);
+        .AddStackExchangeRedis(redisConfig.SignalRBackplane, options =>
+        {
+            options.Configuration.ConnectRetry = 5;
+            options.Configuration.ChannelPrefix = $"{environment}.";
+        });
+
+    #endregion
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowAll",
+            policy => policy.AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader());
+    });
 
     var app = builder.Build();
 
@@ -68,7 +115,9 @@ try
         app.UseHsts();
     }
 
-    app.UseHttpsRedirection();
+    app.UseCors("AllowAll"); // Apply CORS policy
+
+    //app.UseHttpsRedirection();
 
     app.UseRouting();
 
