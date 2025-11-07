@@ -8,91 +8,164 @@
 
 <div class="lobby-container">
     <div class="lobby-card">
-        <h2>게임 로비</h2>
-        
+        <div class="text-center mb-4">
+            <h1 class="display-5 fw-bold" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                🎮 게임 로비
+            </h1>
+            <p class="text-muted mb-0">게임 준비를 완료하세요!</p>
+        </div>
+
         <!-- 사용자 정보 표시 -->
         <div class="user-info-section">
-            <h3>사용자 정보</h3>
+            <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-person-circle me-2" viewBox="0 0 16 16" style="vertical-align: -0.2em;">
+                    <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                    <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z"/>
+                </svg>
+                사용자 정보
+            </h3>
             <div class="user-details">
-                <p><strong>닉네임:</strong> @nickname</p>
-                <p><strong>사용자 ID:</strong> @userId</p>
+                <p class="mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-tag-fill me-2" viewBox="0 0 16 16">
+                        <path d="M2 1a1 1 0 0 0-1 1v4.586a1 1 0 0 0 .293.707l7 7a1 1 0 0 0 1.414 0l4.586-4.586a1 1 0 0 0 0-1.414l-7-7A1 1 0 0 0 6.586 1H2zm4 3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                    </svg>
+                    <strong>닉네임:</strong> @nickname
+                </p>
+                <p class="mb-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-hash me-2" viewBox="0 0 16 16">
+                        <path d="M8.39 12.648a1.32 1.32 0 0 0-.015.18c0 .305.21.508.5.508.266 0 .492-.172.555-.477l.554-2.703h1.204c.421 0 .617-.234.617-.547 0-.312-.188-.53-.617-.53h-.985l.516-2.524h1.265c.43 0 .618-.227.618-.547 0-.313-.188-.524-.618-.524h-1.046l.476-2.304a1.06 1.06 0 0 0 .016-.164.51.51 0 0 0-.516-.516.54.54 0 0 0-.539.43l-.523 2.554H7.617l.477-2.304c.008-.04.015-.118.015-.164a.512.512 0 0 0-.523-.516.539.539 0 0 0-.531.43L6.53 5.484H5.414c-.43 0-.617.22-.617.532 0 .312.187.539.617.539h.906l-.515 2.523H4.609c-.421 0-.609.219-.609.531 0 .313.188.547.61.547h.985l-.516 2.492c-.008.04-.015.125-.015.18 0 .305.21.508.5.508.265 0 .492-.172.554-.477l.555-2.703h2.242l-.515 2.492zm-1-6.109h2.266l-.515 2.563H6.859l.532-2.563z"/>
+                    </svg>
+                    <strong>사용자 ID:</strong> @userId
+                </p>
             </div>
         </div>
 
         <!-- 게임 통계 표시 -->
         <div class="statistics-section">
-            <h3>게임 통계</h3>
+            <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-graph-up me-2" viewBox="0 0 16 16" style="vertical-align: -0.2em;">
+                    <path fill-rule="evenodd" d="M0 0h1v15h15v1H0V0Zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07Z"/>
+                </svg>
+                게임 통계
+            </h3>
             @if (statistics != null)
             {
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-label">승리</div>
-                        <div class="stat-value">@statistics.Wins</div>
+                        <div class="stat-label">🏆 승리</div>
+                        <div class="stat-value text-success">@statistics.Wins</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">패배</div>
-                        <div class="stat-value">@statistics.Losses</div>
+                        <div class="stat-label">😢 패배</div>
+                        <div class="stat-value text-danger">@statistics.Losses</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">무승부</div>
-                        <div class="stat-value">@statistics.Draws</div>
+                        <div class="stat-label">🤝 무승부</div>
+                        <div class="stat-value text-secondary">@statistics.Draws</div>
                     </div>
                 </div>
-                
+
                 <div class="stats-grid mt-3">
                     <div class="stat-card">
-                        <div class="stat-label">바위</div>
+                        <div class="stat-label">✊ 바위</div>
                         <div class="stat-value">@statistics.RockCount</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">보</div>
+                        <div class="stat-label">✋ 보</div>
                         <div class="stat-value">@statistics.PaperCount</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">가위</div>
+                        <div class="stat-label">✌️ 가위</div>
                         <div class="stat-value">@statistics.ScissorsCount</div>
                     </div>
                 </div>
 
                 <div class="win-rate mt-3">
-                    <strong>승률:</strong> @statistics.WinRate.ToString("F1")%
-                    <span class="text-muted">(@statistics.TotalGames 게임)</span>
+                    <strong>🎯 승률:</strong> @statistics.WinRate.ToString("F1")%
+                    <span class="text-muted">(@statistics.TotalGames 게임 플레이)</span>
                 </div>
             }
             else
             {
-                <p class="text-muted">통계를 불러오는 중...</p>
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">로딩 중...</span>
+                    </div>
+                    <p class="text-muted mb-0">통계를 불러오는 중...</p>
+                </div>
             }
         </div>
 
         <!-- 손모양 스킨 선택 -->
         <div class="skin-selection-section">
-            <h3>손모양 스킨 선택</h3>
+            <h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-palette-fill me-2" viewBox="0 0 16 16" style="vertical-align: -0.2em;">
+                    <path d="M12.433 10.07C14.133 10.585 16 11.15 16 8a8 8 0 1 0-8 8c1.996 0 1.826-1.504 1.649-3.08-.124-1.101-.252-2.237.351-2.92.465-.527 1.42-.237 2.433.07zM8 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM5 6.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm.5 6.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+                </svg>
+                손모양 스킨 선택
+            </h3>
             <div class="skin-options">
                 <div class="skin-option @(selectedSkin == 0 ? "selected" : "")" @onclick="() => SelectSkinOption(0)">
-                    <img src="/images/skins/skin1.png" alt="스킨 1" class="skin-preview" />
-                    <p>클래식 스킨</p>
+                    <img src="/images/skins/skin1.svg" alt="스킨 1" class="skin-preview" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                    <div style="display:none; font-size: 80px; margin-bottom: 15px;">✊✋✌️</div>
+                    <p>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill me-1" viewBox="0 0 16 16">
+                            <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+                        </svg>
+                        클래식 스킨
+                    </p>
                 </div>
                 <div class="skin-option @(selectedSkin == 1 ? "selected" : "")" @onclick="() => SelectSkinOption(1)">
-                    <img src="/images/skins/skin2.png" alt="스킨 2" class="skin-preview" />
-                    <p>모던 스킨</p>
+                    <img src="/images/skins/skin2.svg" alt="스킨 2" class="skin-preview" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                    <div style="display:none; font-size: 80px; margin-bottom: 15px;">👊🖐️✌️</div>
+                    <p>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-lightning-fill me-1" viewBox="0 0 16 16">
+                            <path d="M5.52.359A.5.5 0 0 1 6 0h4a.5.5 0 0 1 .474.658L8.694 6H12.5a.5.5 0 0 1 .395.807l-7 9a.5.5 0 0 1-.873-.454L6.823 9.5H3.5a.5.5 0 0 1-.48-.641l2.5-8.5z"/>
+                        </svg>
+                        모던 스킨
+                    </p>
                 </div>
             </div>
 
             @if (!string.IsNullOrEmpty(skinMessage))
             {
-                <div class="alert @(skinMessageType == "success" ? "alert-success" : "alert-danger") mt-2">
-                    @skinMessage
+                <div class="alert @(skinMessageType == "success" ? "alert-success" : "alert-danger") mt-3 d-flex align-items-center" role="alert">
+                    @if (skinMessageType == "success")
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-check-circle-fill me-2" viewBox="0 0 16 16">
+                            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-exclamation-triangle-fill me-2" viewBox="0 0 16 16">
+                            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+                        </svg>
+                    }
+                    <div>@skinMessage</div>
                 </div>
             }
         </div>
 
         <!-- 게임 시작 버튼 -->
-        <button 
-            class="btn btn-success btn-block btn-lg mt-4" 
+        <button
+            class="btn btn-success btn-block btn-lg mt-4 shadow-sm"
             disabled="@(!isSkinSelected)"
             @onclick="StartGame">
-            @(isSkinSelected ? "게임 시작" : "스킨을 선택하세요")
+            @if (isSkinSelected)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-play-circle-fill me-2" viewBox="0 0 16 16" style="vertical-align: -0.2em;">
+                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814l-3.5-2.5z"/>
+                </svg>
+                <span>게임 시작하기</span>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-hand-index-thumb me-2" viewBox="0 0 16 16" style="vertical-align: -0.2em;">
+                    <path d="M6.75 1a.75.75 0 0 1 .75.75V8a.5.5 0 0 0 1 0V5.467l.086-.004c.317-.012.637-.008.816.027.134.027.294.096.448.182.077.042.15.147.15.314V8a.5.5 0 0 0 1 0V6.435l.106-.01c.316-.024.584-.01.708.04.118.046.3.207.486.43.081.096.15.19.2.259V8.5a.5.5 0 1 0 1 0v-1h.342a1 1 0 0 1 .995 1.1l-.271 2.715a2.5 2.5 0 0 1-.317.991l-1.395 2.442a.5.5 0 0 1-.434.252H6.118a.5.5 0 0 1-.447-.276l-1.232-2.465-2.512-4.185a.517.517 0 0 1 .809-.631l2.41 2.41A.5.5 0 0 0 6 9.5V1.75A.75.75 0 0 1 6.75 1zM8.5 4.466V1.75a1.75 1.75 0 1 0-3.5 0v6.543L3.443 6.736A1.517 1.517 0 0 0 1.07 8.588l2.491 4.153 1.215 2.43A1.5 1.5 0 0 0 6.118 16h6.302a1.5 1.5 0 0 0 1.302-.756l1.395-2.441a3.5 3.5 0 0 0 .444-1.389l.271-2.715a2 2 0 0 0-1.99-2.199h-.581a5.114 5.114 0 0 0-.195-.248c-.191-.229-.51-.568-.88-.716-.364-.146-.846-.132-1.158-.108l-.132.012a1.26 1.26 0 0 0-.56-.642 2.632 2.632 0 0 0-.738-.288c-.31-.062-.739-.058-1.05-.046l-.048.002zm2.094 2.025z"/>
+                </svg>
+                <span>스킨을 선택하세요</span>
+            }
         </button>
     </div>
 </div>

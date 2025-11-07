@@ -267,3 +267,12 @@ public void HandleLoginSuccess(long userId, string userNickname, object statisti
 7. **JavaScript 통합**: `App.razor`에서 JavaScript 파일들을 올바른 순서로 로드해야 합니다. SignalR 클라이언트 라이브러리는 login.js와 lobby.js보다 먼저 로드되어야 합니다.
 
 8. **JavaScript 로딩 타이밍**: Blazor 컴포넌트의 `OnAfterRenderAsync`가 JavaScript 파일 로드보다 먼저 실행될 수 있습니다. 이를 방지하기 위해 JavaScript 함수 호출 시 재시도 로직(최대 10회, 100ms 간격)을 구현했습니다. 새로운 Blazor 컴포넌트에서 JavaScript 함수를 호출할 때 이 패턴을 따르세요 (Login.razor:63-94 참조).
+
+9. **정적 파일 서빙**: `app.UseStaticFiles()` 미들웨어가 반드시 필요합니다. .NET 9.0의 Static Web Assets 시스템은 wwwroot 파일을 런타임에 소스에서 직접 서빙합니다. Bootstrap CSS와 JavaScript 파일은 `/lib/` 및 `/js/` 경로로 접근합니다.
+
+10. **UI 디자인 시스템**: Login과 Lobby 페이지는 Bootstrap 5.3과 Bootstrap Icons (SVG 인라인)를 사용합니다. 새로운 페이지 추가 시 일관성을 위해 동일한 패턴을 따르세요:
+    - 그라데이션 타이틀 (`linear-gradient`, `background-clip: text`)
+    - 시맨틱 색상 클래스 (`text-success`, `text-danger`, `text-muted`)
+    - Bootstrap Icons SVG 인라인 방식
+    - 이모지와 아이콘으로 시각적 피드백 강화
+    - 반응형 디자인 (모바일 우선)
