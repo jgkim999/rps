@@ -1,0 +1,217 @@
+@page "/login"
+@rendermode InteractiveServer
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@implements IDisposable
+
+<div class="login-container">
+    <div class="login-card">
+        <h2>게임 로그인</h2>
+        
+        <div class="form-group">
+            <label for="nickname">닉네임</label>
+            <input 
+                type="text" 
+                id="nickname" 
+                class="form-control" 
+                @bind="nickname" 
+                @bind:event="oninput"
+                placeholder="닉네임을 입력하세요 (2-20자)"
+                maxlength="20" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">
+                @errorMessage
+            </div>
+        }
+
+        <div class="connection-status">
+            <span class="status-indicator @GetStatusClass()"></span>
+            <span>@statusMessage</span>
+        </div>
+
+        <button 
+            class="btn btn-primary btn-block" 
+            @onclick="HandleLogin"
+            disabled="@(!IsLoginButtonEnabled())">
+            로그인
+        </button>
+
+        @if (showRetryButton)
+        {
+            <button 
+                class="btn btn-secondary btn-block mt-2" 
+                @onclick="RetryConnection">
+                재시도
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    private string nickname = "";
+    private string errorMessage = "";
+    private string statusMessage = "연결 대기 중";
+    private bool isConnecting = false;
+    private bool isConnected = false;
+    private bool showRetryButton = false;
+    private DotNetObjectReference<Login>? objRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+
+            // JavaScript 파일이 로드될 때까지 재시도
+            var maxRetries = 10;
+            var retryCount = 0;
+            var retryDelay = 100; // ms
+
+            while (retryCount < maxRetries)
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("setLoginComponentReference", objRef);
+                    break; // 성공하면 루프 종료
+                }
+                catch (JSException)
+                {
+                    retryCount++;
+                    if (retryCount >= maxRetries)
+                    {
+                        statusMessage = "JavaScript 로딩 실패. 페이지를 새로고침하세요.";
+                        StateHasChanged();
+                        throw;
+                    }
+                    await Task.Delay(retryDelay);
+                }
+            }
+        }
+    }
+
+    private bool IsLoginButtonEnabled()
+    {
+        return !isConnecting && !string.IsNullOrWhiteSpace(nickname) && ValidateNickname();
+    }
+
+    private bool ValidateNickname()
+    {
+        errorMessage = "";
+        
+        if (string.IsNullOrWhiteSpace(nickname))
+        {
+            return false;
+        }
+
+        if (nickname.Trim().Length < 2)
+        {
+            errorMessage = "닉네임은 최소 2자 이상이어야 합니다";
+            return false;
+        }
+
+        if (nickname.Length > 20)
+        {
+            errorMessage = "닉네임은 최대 20자까지 가능합니다";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(nickname.Trim()))
+        {
+            errorMessage = "닉네임에 공백만 사용할 수 없습니다";
+            return false;
+        }
+
+        return true;
+    }
+
+    private string GetStatusClass()
+    {
+        if (isConnected) return "status-connected";
+        if (isConnecting) return "status-connecting";
+        if (showRetryButton) return "status-failed";
+        return "status-waiting";
+    }
+
+    private async Task HandleLogin()
+    {
+        if (!ValidateNickname())
+        {
+            return;
+        }
+
+        try
+        {
+            isConnecting = true;
+            showRetryButton = false;
+            statusMessage = "연결 중...";
+            StateHasChanged();
+
+            await InitializeSignalR();
+            await ConnectToHub();
+            await LoginUser(nickname.Trim());
+        }
+        catch (Exception ex)
+        {
+            statusMessage = "연결 실패";
+            errorMessage = "서버에 연결할 수 없습니다. 다시 시도해주세요";
+            showRetryButton = true;
+            isConnecting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RetryConnection()
+    {
+        errorMessage = "";
+        showRetryButton = false;
+        await HandleLogin();
+    }
+
+    private async Task InitializeSignalR()
+    {
+        await JSRuntime.InvokeVoidAsync("initializeSignalR");
+    }
+
+    private async Task ConnectToHub()
+    {
+        await JSRuntime.InvokeVoidAsync("connectToHub");
+        isConnected = true;
+        statusMessage = "연결됨";
+        StateHasChanged();
+    }
+
+    private async Task LoginUser(string nick)
+    {
+        await JSRuntime.InvokeVoidAsync("loginUser", nick);
+    }
+
+    [JSInvokable]
+    public void HandleLoginSuccess(long userId, string userNickname, object statistics)
+    {
+        isConnecting = false;
+        statusMessage = "로그인 성공";
+        
+        // Navigate to lobby with query parameters
+        NavigationManager.NavigateTo($"/lobby?userId={userId}&nickname={Uri.EscapeDataString(userNickname)}");
+    }
+
+    [JSInvokable]
+    public void HandleLoginFailed(string error)
+    {
+        isConnecting = false;
+        isConnected = false;
+        statusMessage = "로그인 실패";
+        errorMessage = error;
+        showRetryButton = true;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
+    }
+}

@@ -1,0 +1,231 @@
+@page "/lobby"
+@rendermode InteractiveServer
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@using Rps.Models
+@implements IDisposable
+
+<div class="lobby-container">
+    <div class="lobby-card">
+        <h2>게임 로비</h2>
+        
+        <!-- 사용자 정보 표시 -->
+        <div class="user-info-section">
+            <h3>사용자 정보</h3>
+            <div class="user-details">
+                <p><strong>닉네임:</strong> @nickname</p>
+                <p><strong>사용자 ID:</strong> @userId</p>
+            </div>
+        </div>
+
+        <!-- 게임 통계 표시 -->
+        <div class="statistics-section">
+            <h3>게임 통계</h3>
+            @if (statistics != null)
+            {
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">승리</div>
+                        <div class="stat-value">@statistics.Wins</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">패배</div>
+                        <div class="stat-value">@statistics.Losses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">무승부</div>
+                        <div class="stat-value">@statistics.Draws</div>
+                    </div>
+                </div>
+                
+                <div class="stats-grid mt-3">
+                    <div class="stat-card">
+                        <div class="stat-label">바위</div>
+                        <div class="stat-value">@statistics.RockCount</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">보</div>
+                        <div class="stat-value">@statistics.PaperCount</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">가위</div>
+                        <div class="stat-value">@statistics.ScissorsCount</div>
+                    </div>
+                </div>
+
+                <div class="win-rate mt-3">
+                    <strong>승률:</strong> @statistics.WinRate.ToString("F1")%
+                    <span class="text-muted">(@statistics.TotalGames 게임)</span>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">통계를 불러오는 중...</p>
+            }
+        </div>
+
+        <!-- 손모양 스킨 선택 -->
+        <div class="skin-selection-section">
+            <h3>손모양 스킨 선택</h3>
+            <div class="skin-options">
+                <div class="skin-option @(selectedSkin == 0 ? "selected" : "")" @onclick="() => SelectSkinOption(0)">
+                    <img src="/images/skins/skin1.png" alt="스킨 1" class="skin-preview" />
+                    <p>클래식 스킨</p>
+                </div>
+                <div class="skin-option @(selectedSkin == 1 ? "selected" : "")" @onclick="() => SelectSkinOption(1)">
+                    <img src="/images/skins/skin2.png" alt="스킨 2" class="skin-preview" />
+                    <p>모던 스킨</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(skinMessage))
+            {
+                <div class="alert @(skinMessageType == "success" ? "alert-success" : "alert-danger") mt-2">
+                    @skinMessage
+                </div>
+            }
+        </div>
+
+        <!-- 게임 시작 버튼 -->
+        <button 
+            class="btn btn-success btn-block btn-lg mt-4" 
+            disabled="@(!isSkinSelected)"
+            @onclick="StartGame">
+            @(isSkinSelected ? "게임 시작" : "스킨을 선택하세요")
+        </button>
+    </div>
+</div>
+
+@code {
+    private long userId;
+    private string nickname = "";
+    private UserStatistics? statistics;
+    private int selectedSkin = -1;
+    private bool isSkinSelected = false;
+    private string skinMessage = "";
+    private string skinMessageType = "";
+    private DotNetObjectReference<Lobby>? objRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Parse query parameters
+        var uri = new Uri(NavigationManager.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        
+        var userIdStr = query["userId"];
+        var nicknameParam = query["nickname"];
+
+        if (long.TryParse(userIdStr, out var parsedUserId))
+        {
+            userId = parsedUserId;
+        }
+
+        if (!string.IsNullOrEmpty(nicknameParam))
+        {
+            nickname = nicknameParam;
+        }
+
+        // Initialize statistics (will be populated from login success data)
+        statistics = new UserStatistics();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+
+            // JavaScript 파일이 로드될 때까지 재시도
+            var maxRetries = 10;
+            var retryCount = 0;
+            var retryDelay = 100; // ms
+
+            while (retryCount < maxRetries)
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("setLobbyComponentReference", objRef);
+                    break; // 성공하면 루프 종료
+                }
+                catch (JSException)
+                {
+                    retryCount++;
+                    if (retryCount >= maxRetries)
+                    {
+                        skinMessage = "JavaScript 로딩 실패. 페이지를 새로고침하세요.";
+                        skinMessageType = "error";
+                        StateHasChanged();
+                        throw;
+                    }
+                    await Task.Delay(retryDelay);
+                }
+            }
+        }
+    }
+
+    private async Task SelectSkinOption(int skinId)
+    {
+        selectedSkin = skinId;
+        skinMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            // Call SelectSkin hub method via JavaScript
+            await JSRuntime.InvokeVoidAsync("selectSkin", userId, skinId);
+        }
+        catch (Exception ex)
+        {
+            skinMessage = "스킨 선택 중 오류가 발생했습니다";
+            skinMessageType = "error";
+            isSkinSelected = false;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void HandleSkinSelected(int skinId)
+    {
+        selectedSkin = skinId;
+        isSkinSelected = true;
+        skinMessage = "스킨이 선택되었습니다!";
+        skinMessageType = "success";
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void HandleSkinSelectionFailed(string error)
+    {
+        skinMessage = $"스킨 선택 실패: {error}";
+        skinMessageType = "error";
+        isSkinSelected = false;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void UpdateStatistics(int wins, int losses, int draws, int rockCount, int paperCount, int scissorsCount)
+    {
+        statistics = new UserStatistics
+        {
+            Wins = wins,
+            Losses = losses,
+            Draws = draws,
+            RockCount = rockCount,
+            PaperCount = paperCount,
+            ScissorsCount = scissorsCount
+        };
+        StateHasChanged();
+    }
+
+    private void StartGame()
+    {
+        // TODO: Navigate to game page or start game logic
+        // This will be implemented in future tasks
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
+    }
+}

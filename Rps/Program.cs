@@ -13,7 +13,10 @@ using ZiggyCreatures.Caching.Fusion.Serialization.NewtonsoftJson;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// È¯°æº° ¼³Á¤ ÆÄÀÏ Ãß°¡
+// ëª¨ë“  ë„¤íŠ¸ì›Œí¬ ì¸í„°í˜ì´ìŠ¤ì—ì„œ ì ‘ì† í—ˆìš©
+builder.WebHost.UseUrls("http://0.0.0.0:5184");
+
+// í™˜ê²½ë³€ìˆ˜ ì„¸íŒ…
 var environment = builder.Environment.EnvironmentName;
 var environmentFromEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 if (string.IsNullOrWhiteSpace(environmentFromEnv) == false)
@@ -22,7 +25,7 @@ if (string.IsNullOrWhiteSpace(environmentFromEnv) == false)
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables(); // È¯°æ º¯¼ö°¡ JSON ¼³Á¤À» ¿À¹ö¶óÀÌµå
+    .AddEnvironmentVariables(); // È¯ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ JSON ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ìµï¿½
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -85,6 +88,11 @@ try
 
     // Add services to the container.
     builder.Services.AddRazorPages();
+    builder.Services.AddRazorComponents()
+        .AddInteractiveServerComponents();
+
+    // Register UserService
+    builder.Services.AddScoped<Rps.Services.IUserService, Rps.Services.UserService>();
 
     #region SignalR
 
@@ -119,16 +127,24 @@ try
 
     //app.UseHttpsRedirection();
 
+    // ì •ì  íŒŒì¼ ì„œë¹™ (wwwroot í´ë”)
+    app.UseStaticFiles();
+
     app.UseRouting();
 
     app.UseAuthorization();
+
+    app.UseAntiforgery();
 
     app.MapStaticAssets();
 
     app.MapRazorPages()
         .WithStaticAssets();
 
-    app.MapHub<ChatHub>("/chathub");
+    app.MapRazorComponents<Rps.Components.App>()
+        .AddInteractiveServerRenderMode();
+
+    app.MapHub<GameHub>("/gamehub");
 
     app.Run();
 }

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Skin 2: Modern Hand Style -->
+  <defs>
+    <linearGradient id="skin2Gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357ABD;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#f8f8f8" stroke="#2c3e50" stroke-width="3"/>
+  
+  <!-- Hand shape (fist for rock) with modern style -->
+  <g transform="translate(100, 100)" filter="url(#shadow)">
+    <!-- Palm -->
+    <ellipse cx="0" cy="10" rx="38" ry="42" fill="url(#skin2Gradient)" stroke="#2c3e50" stroke-width="2.5"/>
+    
+    <!-- Thumb -->
+    <ellipse cx="-28" cy="5" rx="14" ry="22" fill="url(#skin2Gradient)" stroke="#2c3e50" stroke-width="2.5" transform="rotate(-30 -28 5)"/>
+    
+    <!-- Fingers (curled with rounded style) -->
+    <rect x="-22" y="-28" width="44" height="28" rx="12" fill="url(#skin2Gradient)" stroke="#2c3e50" stroke-width="2.5"/>
+    
+    <!-- Finger knuckles (modern dots) -->
+    <circle cx="-15" cy="-15" r="3" fill="#2c3e50" opacity="0.3"/>
+    <circle cx="-5" cy="-15" r="3" fill="#2c3e50" opacity="0.3"/>
+    <circle cx="5" cy="-15" r="3" fill="#2c3e50" opacity="0.3"/>
+    <circle cx="15" cy="-15" r="3" fill="#2c3e50" opacity="0.3"/>
+    
+    <!-- Highlight effect -->
+    <ellipse cx="-8" cy="-5" rx="12" ry="8" fill="white" opacity="0.3"/>
+  </g>
+  
+  <!-- Label -->
+  <text x="100" y="185" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#2c3e50">Modern</text>
+</svg>
