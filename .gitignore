@@ -55,3 +55,5 @@ nunit-*.xml
 .vs
 Rps/.idea
 .idea
+iac/.terraform/providers
+.DS_Store

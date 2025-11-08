@@ -10,7 +10,20 @@
 </head>
 <body>
     <Routes />
-    <script src="_framework/blazor.web.js"></script>
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+    <script>
+        // Configure Blazor reconnection settings
+        Blazor.start({
+            reconnectionOptions: {
+                maxRetries: 10,
+                retryIntervalMilliseconds: 2000
+            },
+            configureSignalR: function (builder) {
+                builder.withServerTimeout(60000); // 60 seconds
+                builder.withKeepAliveInterval(15000); // 15 seconds
+            }
+        });
+    </script>
     <script src="/js/signalr/dist/browser/signalr.min.js"></script>
     <script src="/js/login.js"></script>
     <script src="/js/lobby.js"></script>

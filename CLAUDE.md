@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-ASP.NET Core 9.0 기반의 가위바위보(RPS) 멀티플레이어 게임입니다. SignalR을 통한 실시간 통신, Redis를 통한 분산 상태 관리, Blazor Server를 통한 UI를 제공합니다. Redis 백플레인을 지원하여 다중 서버 배포가 가능하도록 설계되었습니다.
+ASP.NET Core 9.0 기반의 가위바위보(RPS) 멀티플레이어 게임입니다. SignalR을 통한 실시간 통신, Valkey (Redis-compatible)를 통한 분산 상태 관리, Blazor Server를 통한 UI를 제공합니다. Valkey 백플레인을 지원하여 다중 서버 배포가 가능하도록 설계되었습니다.
 
 ## 개발 명령어
 
@@ -27,27 +27,29 @@ ASPNETCORE_ENVIRONMENT=Development dotnet run --project Rps/Rps.csproj
 
 ### 사전 요구사항
 - .NET 9.0 SDK
-- Redis 서버 (기본 설정: localhost:6379)
-- `Rps/appsettings.json` 또는 환경별 설정 파일에서 Redis 엔드포인트 설정 필요
+- Valkey 서버 (Redis-compatible, 기본 설정: localhost:6379)
+- `Rps/appsettings.json` 또는 환경별 설정 파일에서 Valkey 엔드포인트 설정 필요
 - 방화벽에서 포트 5184 허용 (외부 접속 시)
 
 ## 아키텍처
 
-### 다층 Redis 통합
+### 다층 Valkey 통합
 
-이 애플리케이션은 Redis를 세 가지 목적으로 사용하며, 각각 `appsettings.json`에서 별도의 연결 문자열이 필요합니다:
+이 애플리케이션은 Valkey (Redis-compatible)를 세 가지 목적으로 사용하며, 각각 `appsettings.json`에서 별도의 연결 문자열이 필요합니다:
 
-1. **SignalR 백플레인** (`SignalRBackplane`): Redis를 통해 메시지를 브로드캐스트하여 여러 서버 인스턴스에서 SignalR이 작동하도록 함
+1. **SignalR 백플레인** (`SignalRBackplane`): Valkey를 통해 메시지를 브로드캐스트하여 여러 서버 인스턴스에서 SignalR이 작동하도록 함
 2. **FusionCache 분산 캐시** (`FusionCacheRedisCache`): 분산 무효화 기능이 있는 캐시 데이터 저장
 3. **FusionCache 백플레인** (`FusionCacheBackplane`): 여러 서버 인스턴스 간 캐시 무효화 동기화
 
-모든 Redis 작업은 현재 환경 이름(Development/Production)을 접두사로 사용하여 환경 간 데이터를 격리합니다.
+모든 Valkey 작업은 현재 환경 이름(Development/Production)을 접두사로 사용하여 환경 간 데이터를 격리합니다.
 
 ### RedisManager 패턴
 
-`RedisManager` 클래스 (Rps/RedisManager.cs)는 `ConnectionMultiplexer`를 래핑하고 모든 키에 환경 이름을 자동으로 접두사로 붙입니다. `RedisManager.GetDatabase()`를 통해 Redis에 액세스하면 키가 자동으로 네임스페이스화됩니다.
+`RedisManager` 클래스 (Rps/RedisManager.cs)는 StackExchange.Redis의 `ConnectionMultiplexer`를 래핑하고 모든 키에 환경 이름을 자동으로 접두사로 붙입니다. `RedisManager.GetDatabase()`를 통해 Valkey에 액세스하면 키가 자동으로 네임스페이스화됩니다.
 
 **중요**: `RedisManager`를 통한 `IDatabase` 메서드 직접 사용 시 환경 접두사가 자동으로 붙습니다. 사용자 데이터 키 패턴: `{environment}:user:{userId}` 또는 `{environment}:user:nickname:{nickname}`.
+
+**Note**: Valkey는 Redis와 완전히 호환되므로 StackExchange.Redis 클라이언트 라이브러리를 그대로 사용합니다.
 
 ### Blazor Components 아키텍처
 
@@ -171,7 +173,7 @@ public void HandleLoginSuccess(long userId, string userNickname, object statisti
 `GameHub` (Rps/Hubs/GameHub.cs:136)는 `/gamehub`에 매핑된 메인 실시간 통신 허브입니다. 주요 패턴:
 
 - **연결 생명주기**: OnConnectedAsync/OnDisconnectedAsync로 클라이언트 연결 처리
-  - FusionCache와 Redis Set 모두에 연결 상태 저장
+  - FusionCache와 Valkey Set 모두에 연결 상태 저장
   - 브로드캐스트를 위해 클라이언트를 "SignalR Users" 그룹에 추가
   - 중요하지 않은 작업은 실패해도 계속 진행하는 우아한 에러 처리
 
@@ -188,9 +190,9 @@ public void HandleLoginSuccess(long userId, string userNickname, object statisti
 
 ### User Service 계층
 
-`IUserService` (Rps/Services/IUserService.cs)는 Redis를 영구 저장소로 사용하여 모든 사용자 데이터 작업을 추상화합니다:
+`IUserService` (Rps/Services/IUserService.cs)는 Valkey를 영구 저장소로 사용하여 모든 사용자 데이터 작업을 추상화합니다:
 
-- 사용자 프로필은 Redis Hash로 `user:{userId}` 키에 저장
+- 사용자 프로필은 Valkey Hash로 `user:{userId}` 키에 저장
 - 닉네임-사용자ID 매핑은 String으로 `user:nickname:{nickname}` 키에 저장
 - 사용자 ID 카운터는 `user:id:counter` 키로 관리
 - 모든 예외는 포착, 로깅되고 클라이언트를 위한 한글 에러 메시지와 함께 `ArgumentException` 또는 `InvalidOperationException`으로 재발생
@@ -235,17 +237,17 @@ public void HandleLoginSuccess(long userId, string userNickname, object statisti
 - 클라이언트에 한글 에러 메시지 반환
 - 구체적인 에러 콜백 사용 (일반적인 예외 사용 금지)
 
-### Redis 키 명명 규칙
+### Valkey 키 명명 규칙
 기존 패턴을 따르세요:
 - 사용자 데이터: `user:{userId}` (hash), `user:nickname:{nickname}` (string)
 - 연결된 클라이언트: `ConnectedClient-{connectionId}` (FusionCache)
-- 사용자 집합: `Users` (Redis Set)
+- 사용자 집합: `Users` (Valkey Set)
 - 모든 키는 RedisManager에 의해 환경 이름이 자동으로 접두사로 붙음
 
 ## 테스트 참고사항
 
 로컬 테스트 시:
-- Redis가 localhost:6379에서 실행 중인지 확인
+- Valkey (또는 Redis)가 localhost:6379에서 실행 중인지 확인
 - 디버깅을 위해 `logs/rps-.log`에서 로그 확인
 - FusionCache 디버그 로깅은 기본적으로 활성화됨
 - SignalR 연결은 브라우저 DevTools를 통해 테스트 가능 (허브는 `/gamehub`에 위치)
@@ -256,7 +258,7 @@ public void HandleLoginSuccess(long userId, string userNickname, object statisti
 
 2. **Connection ID 추적**: 각 SignalR 연결은 고유한 `Context.ConnectionId`를 가지며, 이는 사용자 프로필에 저장되고 활성 연결 추적에 사용됩니다.
 
-3. **캐시 vs 영구 저장소**: FusionCache는 임시 데이터(연결된 클라이언트)에 사용되고, Redis 네이티브 작업은 영구 사용자 데이터에 사용됩니다.
+3. **캐시 vs 영구 저장소**: FusionCache는 임시 데이터(연결된 클라이언트)에 사용되고, Valkey 네이티브 작업은 영구 사용자 데이터에 사용됩니다.
 
 4. **CORS 정책**: 개발을 위해 "AllowAll" 정책이 활성화되어 있습니다. 프로덕션 배포 전에 검토하세요.
 
