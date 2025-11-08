@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Rps;
 using Rps.Configs;
-using Rps.Handlers.Commands;
 using Rps.Hubs;
 
 using Serilog;
