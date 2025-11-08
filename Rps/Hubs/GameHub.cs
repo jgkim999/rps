@@ -1,6 +1,7 @@
+using LiteBus.Commands.Abstractions;
 using Microsoft.AspNetCore.SignalR;
-using Rps.Models;
-using Rps.Services;
+using Rps.Handlers.Commands;
+
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Rps.Hubs;
@@ -9,11 +10,16 @@ public class GameHub : Hub
 {
     private readonly ILogger<GameHub> _logger;
     private readonly IServiceProvider _provider;
+    private readonly ICommandMediator _commandMediator;
 
-    public GameHub(ILogger<GameHub> logger, IServiceProvider provider)
+    public GameHub(
+        ILogger<GameHub> logger,
+        IServiceProvider provider,
+        ICommandMediator commandMediator)
     {
         _logger = logger;
         _provider = provider;
+        _commandMediator = commandMediator;
     }
 
     public override async Task OnConnectedAsync()
@@ -128,28 +134,20 @@ public class GameHub : Hub
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(user))
-            {
-                _logger.LogWarning("SendMessage called with empty user from ClientId: {ClientId}", Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnError", "사용자 이름이 비어있습니다");
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(message))
-            {
-                _logger.LogWarning("SendMessage called with empty message from user: {User}, ClientId: {ClientId}", 
-                    user, Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnError", "메시지가 비어있습니다");
-                return;
-            }
-
-            await Clients.All.SendAsync("ReceiveMessage", user, message);
-            _logger.LogDebug("Message sent from user: {User}, ClientId: {ClientId}", user, Context.ConnectionId);
+            var command = new SendMessageCommand(user, message);
+            await _commandMediator.SendAsync(command);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send message from user: {User}, ClientId: {ClientId}", user, Context.ConnectionId);
-            await Clients.Caller.SendAsync("OnError", "메시지 전송에 실패했습니다");
+            try
+            {
+                await Clients.Caller.SendAsync("OnError", "메시지 전송에 실패했습니다");
+            }
+            catch (Exception sendEx)
+            {
+                _logger.LogError(sendEx, "Failed to send error message to client. ClientId: {ClientId}", Context.ConnectionId);
+            }
         }
     }
 
@@ -157,87 +155,29 @@ public class GameHub : Hub
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(nickname))
-            {
-                _logger.LogWarning("LoginUser called with empty nickname from ClientId: {ClientId}", Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnLoginFailed", "닉네임을 입력해주세요");
-                return;
-            }
+            var command = new LoginUserCommand(nickname, Context.ConnectionId);
+            var userProfile = await _commandMediator.SendAsync(command);
 
-            if (nickname.Length < 2)
-            {
-                _logger.LogWarning("LoginUser called with too short nickname: {Nickname} from ClientId: {ClientId}", 
-                    nickname, Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnLoginFailed", "닉네임은 최소 2자 이상이어야 합니다");
-                return;
-            }
-
-            if (nickname.Length > 20)
-            {
-                _logger.LogWarning("LoginUser called with too long nickname from ClientId: {ClientId}", Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnLoginFailed", "닉네임은 최대 20자까지 가능합니다");
-                return;
-            }
-
-            IUserService userService;
             try
             {
-                userService = _provider.GetRequiredService<IUserService>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get UserService for login. ClientId: {ClientId}", Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnLoginFailed", "서비스를 사용할 수 없습니다. 잠시 후 다시 시도해주세요");
-                return;
-            }
-
-            UserProfile userProfile;
-            try
-            {
-                userProfile = await userService.LoginOrCreateUserAsync(nickname, Context.ConnectionId);
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Invalid argument in LoginUser for nickname: {Nickname}", nickname);
-                await Clients.Caller.SendAsync("OnLoginFailed", ex.Message);
-                return;
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(ex, "Operation failed in LoginUser for nickname: {Nickname}", nickname);
-                await Clients.Caller.SendAsync("OnLoginFailed", ex.Message);
-                return;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in LoginUser for nickname: {Nickname}", nickname);
-                await Clients.Caller.SendAsync("OnLoginFailed", "로그인 처리 중 오류가 발생했습니다. 다시 시도해주세요");
-                return;
-            }
-            
-            try
-            {
-                await Clients.Caller.SendAsync("OnLoginSuccess", 
-                    userProfile.UserId, 
+                await Clients.Caller.SendAsync("OnLoginSuccess",
+                    userProfile.UserId,
                     userProfile.Nickname,
                     userProfile.SelectedSkin,
                     userProfile.Statistics);
-                
-                _logger.LogInformation("User logged in successfully. UserId:{UserId}, Nickname:{Nickname}, SelectedSkin:{SelectedSkin} ClientId:{ClientId}", 
-                    userProfile.UserId, userProfile.Nickname, userProfile.SelectedSkin, Context.ConnectionId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send login success message to client. UserId:{UserId}, ClientId:{ClientId}", 
+                _logger.LogError(ex, "Failed to send login success message to client. UserId:{UserId}, ClientId:{ClientId}",
                     userProfile.UserId, Context.ConnectionId);
                 // User is logged in but client notification failed - client should retry
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error in LoginUser for nickname: {Nickname}, ClientId: {ClientId}", 
+            _logger.LogError(ex, "Unexpected error in LoginUser for nickname: {Nickname}, ClientId: {ClientId}",
                 nickname, Context.ConnectionId);
-            
+
             try
             {
                 await Clients.Caller.SendAsync("OnLoginFailed", "로그인 처리 중 예상치 못한 오류가 발생했습니다");
@@ -253,76 +193,25 @@ public class GameHub : Hub
     {
         try
         {
-            if (userId <= 0)
-            {
-                _logger.LogWarning("SelectSkin called with invalid userId: {UserId} from ClientId: {ClientId}", 
-                    userId, Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnSkinSelectionFailed", "잘못된 사용자 ID입니다");
-                return;
-            }
+            var command = new SelectSkinCommand(userId, skinId);
+            await _commandMediator.SendAsync(command);
 
-            if (skinId < 0)
-            {
-                _logger.LogWarning("SelectSkin called with invalid skinId: {SkinId} for userId: {UserId}, ClientId: {ClientId}", 
-                    skinId, userId, Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnSkinSelectionFailed", "잘못된 스킨 ID입니다");
-                return;
-            }
-
-            IUserService userService;
-            try
-            {
-                userService = _provider.GetRequiredService<IUserService>();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get UserService for skin selection. ClientId: {ClientId}", Context.ConnectionId);
-                await Clients.Caller.SendAsync("OnSkinSelectionFailed", "서비스를 사용할 수 없습니다. 잠시 후 다시 시도해주세요");
-                return;
-            }
-
-            try
-            {
-                await userService.UpdateUserSkinAsync(userId, skinId);
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "Invalid argument in SelectSkin for userId: {UserId}, skinId: {SkinId}", userId, skinId);
-                await Clients.Caller.SendAsync("OnSkinSelectionFailed", ex.Message);
-                return;
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError(ex, "Operation failed in SelectSkin for userId: {UserId}, skinId: {SkinId}", userId, skinId);
-                await Clients.Caller.SendAsync("OnSkinSelectionFailed", ex.Message);
-                return;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in SelectSkin for userId: {UserId}, skinId: {SkinId}", userId, skinId);
-                await Clients.Caller.SendAsync("OnSkinSelectionFailed", "스킨 선택 중 오류가 발생했습니다. 다시 시도해주세요");
-                return;
-            }
-            
             try
             {
                 await Clients.Caller.SendAsync("OnSkinSelected", skinId);
-                
-                _logger.LogInformation("Skin selected successfully. UserId:{UserId}, SkinId:{SkinId}, ClientId:{ClientId}", 
-                    userId, skinId, Context.ConnectionId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send skin selection success message. UserId:{UserId}, ClientId:{ClientId}", 
+                _logger.LogError(ex, "Failed to send skin selection success message. UserId:{UserId}, ClientId:{ClientId}",
                     userId, Context.ConnectionId);
                 // Skin is selected but client notification failed - client should check state
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error in SelectSkin for userId: {UserId}, skinId: {SkinId}, ClientId: {ClientId}", 
+            _logger.LogError(ex, "Unexpected error in SelectSkin for userId: {UserId}, skinId: {SkinId}, ClientId: {ClientId}",
                 userId, skinId, Context.ConnectionId);
-            
+
             try
             {
                 await Clients.Caller.SendAsync("OnSkinSelectionFailed", "스킨 선택 중 예상치 못한 오류가 발생했습니다");

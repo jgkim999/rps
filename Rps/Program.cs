@@ -1,8 +1,13 @@
+using LiteBus.Commands;
+using LiteBus.Events;
+using LiteBus.Extensions.Microsoft.DependencyInjection;
+using LiteBus.Queries;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Rps;
 using Rps.Configs;
+using Rps.Handlers.Commands;
 using Rps.Hubs;
 
 using Serilog;
@@ -133,6 +138,25 @@ try
     // Register UserService
     builder.Services.AddScoped<Rps.Services.IUserService, Rps.Services.UserService>();
 
+    // Register LiteBus Command Handlers
+    builder.Services.AddLiteBus(liteBus =>
+    {
+        // This registers the Command Module and scans the assembly for handlers.
+        // The core MessageModule is included automatically.
+        liteBus.AddCommandModule(module =>
+        {
+            module.RegisterFromAssembly(typeof(Program).Assembly);
+        });
+        liteBus.AddQueryModule(module =>
+        {
+            module.RegisterFromAssembly(typeof(Program).Assembly);
+        });
+        liteBus.AddEventModule(module =>
+        {
+            module.RegisterFromAssembly(typeof(Program).Assembly);
+        });
+    });
+
     // Add Health Checks
     builder.Services.AddHealthChecks();
 
@@ -189,7 +213,7 @@ try
     var app = builder.Build();
 
     app.UseForwardedHeaders();
-
+    
     // Configure the HTTP request pipeline.
     //if (!app.Environment.IsDevelopment())
     //{
