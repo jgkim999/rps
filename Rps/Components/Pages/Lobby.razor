@@ -173,8 +173,8 @@
 @code {
     private long userId;
     private string nickname = "";
+    private int selectedSkin = 0;
     private UserStatistics? statistics;
-    private int selectedSkin = -1;
     private bool isSkinSelected = false;
     private string skinMessage = "";
     private string skinMessageType = "";
@@ -188,10 +188,17 @@
         
         var userIdStr = query["userId"];
         var nicknameParam = query["nickname"];
+        var selectedSkinStr = query["selectedSkin"];
 
         if (long.TryParse(userIdStr, out var parsedUserId))
         {
             userId = parsedUserId;
+        }
+        
+        if (int.TryParse(selectedSkinStr, out var parsedSkin))
+        {
+            selectedSkin = parsedSkin;
+            isSkinSelected = true;
         }
 
         if (!string.IsNullOrEmpty(nicknameParam))
@@ -233,6 +240,45 @@
                     }
                     await Task.Delay(retryDelay);
                 }
+            }
+
+            // Load statistics from sessionStorage
+            try
+            {
+                var statisticsJson = await JSRuntime.InvokeAsync<string>("sessionStorage.getItem", "userStatistics");
+                if (!string.IsNullOrEmpty(statisticsJson))
+                {
+                    Console.WriteLine($"Loading statistics from sessionStorage: {statisticsJson}");
+
+                    var jsonOptions = new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+                    var stats = System.Text.Json.JsonSerializer.Deserialize<UserStatistics>(statisticsJson, jsonOptions);
+                    if (stats != null)
+                    {
+                        statistics = stats;
+                        Console.WriteLine($"Statistics loaded successfully: Wins={stats.Wins}, Losses={stats.Losses}, Draws={stats.Draws}");
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        Console.WriteLine("Deserialized statistics is null");
+                    }
+
+                    // Remove from sessionStorage after loading (security and cleanup)
+                    await JSRuntime.InvokeVoidAsync("sessionStorage.removeItem", "userStatistics");
+                }
+                else
+                {
+                    Console.WriteLine("No statistics found in sessionStorage");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail the page load
+                Console.WriteLine($"Failed to load statistics from sessionStorage: {ex.Message}");
+                Console.WriteLine($"Exception details: {ex}");
             }
         }
     }

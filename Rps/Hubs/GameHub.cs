@@ -29,7 +29,7 @@ public class GameHub : Hub
                 IFusionCache? cache = scope.ServiceProvider.GetService<IFusionCache>();
                 if (cache is not null)
                 {
-                    await cache.SetAsync($"ConnectedClient-{Context.ConnectionId}", DateTimeOffset.UtcNow, TimeSpan.FromMinutes(30));
+                    await cache.SetAsync($"ConnectedClient-{Context.ConnectionId}", DateTimeOffset.UtcNow, TimeSpan.FromMinutes(60));
                 }
             }
             catch (Exception ex)
@@ -219,11 +219,12 @@ public class GameHub : Hub
             {
                 await Clients.Caller.SendAsync("OnLoginSuccess", 
                     userProfile.UserId, 
-                    userProfile.Nickname, 
+                    userProfile.Nickname,
+                    userProfile.SelectedSkin,
                     userProfile.Statistics);
                 
-                _logger.LogInformation("User logged in successfully. UserId:{UserId}, Nickname:{Nickname}, ClientId:{ClientId}", 
-                    userProfile.UserId, userProfile.Nickname, Context.ConnectionId);
+                _logger.LogInformation("User logged in successfully. UserId:{UserId}, Nickname:{Nickname}, SelectedSkin:{SelectedSkin} ClientId:{ClientId}", 
+                    userProfile.UserId, userProfile.Nickname, userProfile.SelectedSkin, Context.ConnectionId);
             }
             catch (Exception ex)
             {

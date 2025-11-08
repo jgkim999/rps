@@ -56,16 +56,20 @@ try
 
     #region Redis
 
-    var options = new ConfigurationOptions
+    ConfigurationOptions redisOptions = new()
     {
         EndPoints = { redisConfig.FusionCacheRedisCache },
         ChannelPrefix = environment,
-        Ssl = true,
-        Password = redisConfig.AuthToken,
         AbortOnConnectFail = false
     };
 
-    ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(options);
+    if (builder.Environment.IsProduction())
+    {
+        redisOptions.Ssl = true;
+        redisOptions.Password = redisConfig.AuthToken;
+    }
+
+    ConnectionMultiplexer redis = ConnectionMultiplexer.Connect(redisOptions);
     builder.Services.AddSingleton(new RedisManager(redis, environment));
     Log.Information("Redis Connection:{IsConnected}", redis.IsConnected); // Should be true
 
@@ -81,18 +85,26 @@ try
     var redisCacheOptions = new ConfigurationOptions
     {
         EndPoints = { redisConfig.FusionCacheRedisCache },
-        Ssl = true,
-        Password = redisConfig.AuthToken,
         AbortOnConnectFail = false
     };
+    
+    if (builder.Environment.IsProduction())
+    {
+        redisCacheOptions.Ssl = true;
+        redisCacheOptions.Password = redisConfig.AuthToken;
+    }
 
     var redisBackplaneOptions = new ConfigurationOptions
     {
         EndPoints = { redisConfig.FusionCacheBackplane },
-        Ssl = true,
-        Password = redisConfig.AuthToken,
         AbortOnConnectFail = false
     };
+
+    if (builder.Environment.IsProduction())
+    {
+        redisBackplaneOptions.Ssl = true;
+        redisBackplaneOptions.Password = redisConfig.AuthToken;
+    }
 
     builder.Services.AddFusionCache()
         .WithSerializer(
@@ -106,7 +118,7 @@ try
         )
         .WithDefaultEntryOptions(new FusionCacheEntryOptions
         {
-            Duration = TimeSpan.FromMinutes(1),
+            Duration = TimeSpan.FromMinutes(10),
             JitterMaxDuration = TimeSpan.FromSeconds(10)
         });
     builder.Services.ConfigureAll<FusionCacheOptions>(opts => opts.CacheKeyPrefix = $"{environment}:{opts.CacheName}:");
@@ -128,7 +140,7 @@ try
     builder.Services.AddServerSideBlazor()
         .AddCircuitOptions(options =>
         {
-            options.DetailedErrors = builder.Environment.IsDevelopment();
+            options.DetailedErrors = true; //builder.Environment.IsDevelopment();
             options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
             options.DisconnectedCircuitMaxRetained = 100;
             options.JSInteropDefaultCallTimeout = TimeSpan.FromMinutes(1);
@@ -154,10 +166,13 @@ try
         {
             options.Configuration.ConnectRetry = 5;
             options.Configuration.ChannelPrefix = $"{environment}.";
-            options.Configuration.Ssl = true;
-            if (!string.IsNullOrEmpty(redisConfig.AuthToken))
+            if (builder.Environment.IsProduction())
             {
-                options.Configuration.Password = redisConfig.AuthToken;
+                options.Configuration.Ssl = true;
+                if (!string.IsNullOrEmpty(redisConfig.AuthToken))
+                {
+                    options.Configuration.Password = redisConfig.AuthToken;
+                }
             }
         });
 

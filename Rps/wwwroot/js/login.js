@@ -21,9 +21,25 @@ window.initializeSignalR = function () {
         .build();
 
     // Register event handlers
-    loginConnection.on("OnLoginSuccess", function (userId, nickname, statistics) {
+    loginConnection.on("OnLoginSuccess", function (userId, nickname, selectedSkin, statistics) {
+        console.log("OnLoginSuccess called:", {
+            userId: userId,
+            nickname: nickname,
+            selectedSkin: selectedSkin,
+            statistics: statistics
+        });
+
         if (loginComponentReference) {
-            loginComponentReference.invokeMethodAsync('HandleLoginSuccess', userId, nickname, statistics);
+            console.log("Calling HandleLoginSuccess on Blazor component...");
+            loginComponentReference.invokeMethodAsync('HandleLoginSuccess', userId, nickname, selectedSkin, statistics)
+                .then(function() {
+                    console.log("HandleLoginSuccess completed successfully");
+                })
+                .catch(function(error) {
+                    console.error("Error calling HandleLoginSuccess:", error);
+                });
+        } else {
+            console.error("loginComponentReference is null!");
         }
     });
 

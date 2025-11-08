@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
+@inject ILogger<Login> _logger
 @implements IDisposable
 
 <div class="login-container">
@@ -220,13 +221,45 @@
     }
 
     [JSInvokable]
-    public void HandleLoginSuccess(long userId, string userNickname, object statistics)
+    public async Task HandleLoginSuccess(long userId, string userNickname, int selectedSkin, object statistics)
     {
-        isConnecting = false;
-        statusMessage = "로그인 성공";
-        
-        // Navigate to lobby with query parameters
-        NavigationManager.NavigateTo($"/lobby?userId={userId}&nickname={Uri.EscapeDataString(userNickname)}");
+        try
+        {
+            _logger.LogInformation("HandleLoginSuccess called: UserId={UserId}, Nickname={Nickname}, SelectedSkin={SelectedSkin}",
+                userId, userNickname, selectedSkin);
+
+            isConnecting = false;
+            statusMessage = "로그인 성공";
+
+            try
+            {
+                // Save statistics to sessionStorage for Lobby to retrieve
+                var jsonOptions = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+                };
+                await JSRuntime.InvokeVoidAsync("sessionStorage.setItem", "userStatistics",
+                    System.Text.Json.JsonSerializer.Serialize(statistics, jsonOptions));
+
+                _logger.LogInformation("Statistics saved to sessionStorage: UserId={UserId}", userId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to save statistics to sessionStorage");
+                // Continue navigation even if storage fails
+            }
+
+            // Navigate to lobby with query parameters
+            var lobbyUrl = $"/lobby?userId={userId}&nickname={Uri.EscapeDataString(userNickname)}&selectedSkin={selectedSkin}";
+            _logger.LogInformation("Navigating to: {LobbyUrl}", lobbyUrl);
+            NavigationManager.NavigateTo(lobbyUrl);
+            _logger.LogInformation("Navigation completed");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in HandleLoginSuccess");
+            throw;
+        }
     }
 
     [JSInvokable]
