@@ -1,0 +1,49 @@
+# Terraform Variables Configuration
+# Copy this file to terraform.tfvars and update with your values
+
+# Required Variables
+domain_name = "rps100.duckdns.org"  # Your DuckDNS domain
+
+# AWS Configuration
+aws_region   = "ap-northeast-2"
+project_name = "rps"
+environment  = "prod"
+
+# ECS Configuration
+ecs_desired_count = 2
+ecs_task_cpu      = 512   # 0.5 vCPU
+ecs_task_memory   = 1024  # 1 GB
+
+# Container Configuration
+container_port = 5184
+
+# Valkey Configuration (Redis-compatible)
+redis_node_type          = "cache.t4g.micro"
+redis_num_cache_clusters = 2  # 1 primary + 1 replica
+redis_auth_token         = "YOUR_SECURE_VALKEY_TOKEN_16_CHARS_MINIMUM"  # REQUIRED: 16-128 alphanumeric characters
+
+# RabbitMQ Configuration
+rabbitmq_instance_type = "mq.t3.micro"
+rabbitmq_username      = "admin"
+# rabbitmq_password = ""  # Leave empty to auto-generate
+
+# ECR Configuration
+ecr_image_tag_mutability  = "MUTABLE"
+ecr_image_retention_count = 10
+
+# Monitoring
+enable_container_insights = true
+
+# Health Check Configuration
+health_check_path     = "/"
+health_check_interval = 30
+health_check_timeout  = 5
+healthy_threshold     = 2
+unhealthy_threshold   = 3
+deregistration_delay  = 30
+
+# Network Configuration (Optional - defaults are fine)
+# vpc_cidr             = "10.0.0.0/16"
+# availability_zones   = ["ap-northeast-2a", "ap-northeast-2c"]
+# public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+# private_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24"]
