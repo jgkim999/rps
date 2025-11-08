@@ -48,8 +48,14 @@ resource "aws_mq_broker" "rabbitmq" {
     password = var.rabbitmq_password != "" ? var.rabbitmq_password : random_password.rabbitmq.result
   }
 
+  # Guest user configuration
+  user {
+    username = "guest"
+    password = "guest"
+  }
+
   # Enable automatic minor version upgrades
-  auto_minor_version_upgrade = true
+  auto_minor_version_upgrade = false
 
   # Maintenance window (Sunday 03:00-04:00 UTC)
   maintenance_window_start_time {

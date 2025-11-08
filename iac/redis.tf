@@ -25,7 +25,7 @@ resource "aws_elasticache_parameter_group" "redis" {
   }
 }
 
-# ElastiCache Valkey Replication Group
+# ElastiCache Valkey Replication Group (Cluster Mode Enabled)
 resource "aws_elasticache_replication_group" "redis" {
   replication_group_id = "${var.project_name}-valkey"
   description          = "Valkey cluster for ${var.project_name} application"
@@ -36,8 +36,12 @@ resource "aws_elasticache_replication_group" "redis" {
   port                 = 6379
   parameter_group_name = aws_elasticache_parameter_group.redis.name
 
-  # Cluster mode configuration
-  num_cache_clusters         = 2
+  # Cluster mode configuration (샤딩 활성화)
+  cluster_mode {
+    num_node_groups         = 2  # 샤드 개수 (확장 가능)
+    replicas_per_node_group = 1  # 각 샤드당 replica 개수
+  }
+
   automatic_failover_enabled = true
   multi_az_enabled           = true
 
@@ -59,7 +63,7 @@ resource "aws_elasticache_replication_group" "redis" {
   auth_token_update_strategy = "ROTATE"
 
   # Auto minor version upgrade
-  auto_minor_version_upgrade = true
+  auto_minor_version_upgrade = false
 
   tags = {
     Name        = "${var.project_name}-valkey"
