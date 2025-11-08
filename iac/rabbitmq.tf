@@ -33,14 +33,14 @@ resource "aws_secretsmanager_secret_version" "rabbitmq_credentials" {
 resource "aws_mq_broker" "rabbitmq" {
   broker_name        = "${var.project_name}-${var.environment}-rabbitmq"
   engine_type        = "RabbitMQ"
-  engine_version     = "3.13"
+  engine_version     = var.rabbitmq_engine_version
   host_instance_type = var.rabbitmq_instance_type
-  deployment_mode    = "SINGLE_INSTANCE"
+  deployment_mode    = var.rabbitmq_deployment_mode
 
   # Use the first private subnet for single-instance deployment
   subnet_ids          = [aws_subnet.private[0].id]
   security_groups     = [aws_security_group.rabbitmq.id]
-  publicly_accessible = false
+  publicly_accessible = var.rabbitmq_publicly_accessible
 
   # Admin user configuration
   user {
@@ -50,23 +50,23 @@ resource "aws_mq_broker" "rabbitmq" {
 
   # Guest user configuration
   user {
-    username = "guest"
-    password = "guest"
+    username = var.rabbitmq_guest_username
+    password = var.rabbitmq_guest_password
   }
 
   # Enable automatic minor version upgrades
-  auto_minor_version_upgrade = false
+  auto_minor_version_upgrade = var.rabbitmq_auto_minor_version_upgrade
 
   # Maintenance window (Sunday 03:00-04:00 UTC)
   maintenance_window_start_time {
-    day_of_week = "SUNDAY"
-    time_of_day = "03:00"
-    time_zone   = "UTC"
+    day_of_week = var.rabbitmq_maintenance_day_of_week
+    time_of_day = var.rabbitmq_maintenance_time_of_day
+    time_zone   = var.rabbitmq_maintenance_time_zone
   }
 
   # CloudWatch logs configuration
   logs {
-    general = true
+    general = var.rabbitmq_logs_general
   }
 
   tags = {

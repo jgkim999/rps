@@ -9,8 +9,8 @@ resource "aws_lb" "main" {
   enable_deletion_protection = false
   # Disable HTTP/2 for SignalR WebSocket compatibility
   # WebSocket only works with HTTP/1.1
-  enable_http2               = false
-  
+  enable_http2 = false
+
   # Increase idle timeout for WebSocket connections (SignalR/Blazor)
   idle_timeout = 300 # 5 minutes (default is 60 seconds)
 

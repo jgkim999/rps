@@ -23,8 +23,8 @@ resource "aws_appautoscaling_policy" "ecs_cpu" {
     }
 
     target_value       = 50.0
-    scale_in_cooldown  = 300  # 5 minutes
-    scale_out_cooldown = 60   # 1 minute
+    scale_in_cooldown  = 300 # 5 minutes
+    scale_out_cooldown = 60  # 1 minute
   }
 }
 
@@ -42,8 +42,8 @@ resource "aws_appautoscaling_policy" "ecs_memory" {
     }
 
     target_value       = 50.0
-    scale_in_cooldown  = 300  # 5 minutes
-    scale_out_cooldown = 60   # 1 minute
+    scale_in_cooldown  = 300 # 5 minutes
+    scale_out_cooldown = 60  # 1 minute
   }
 }
 
@@ -61,8 +61,8 @@ resource "aws_appautoscaling_policy" "ecs_alb_requests" {
       resource_label         = "${aws_lb.main.arn_suffix}/${aws_lb_target_group.ecs.arn_suffix}"
     }
 
-    target_value       = 1000.0  # 1000 requests per target
-    scale_in_cooldown  = 300     # 5 minutes
-    scale_out_cooldown = 60      # 1 minute
+    target_value       = 1000.0 # 1000 requests per target
+    scale_in_cooldown  = 300    # 5 minutes
+    scale_out_cooldown = 60     # 1 minute
   }
 }

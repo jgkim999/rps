@@ -12,11 +12,11 @@ resource "aws_elasticache_subnet_group" "redis" {
 # ElastiCache Valkey Parameter Group
 resource "aws_elasticache_parameter_group" "redis" {
   name   = "${var.project_name}-valkey-params"
-  family = "valkey8"
+  family = var.redis_parameter_family
 
   parameter {
     name  = "maxmemory-policy"
-    value = "allkeys-lru"
+    value = var.redis_maxmemory_policy
   }
 
   tags = {
@@ -31,39 +31,35 @@ resource "aws_elasticache_replication_group" "redis" {
   description          = "Valkey cluster for ${var.project_name} application"
 
   engine               = "valkey"
-  engine_version       = "8.2"
-  node_type            = "cache.t4g.micro"
-  port                 = 6379
+  engine_version       = var.redis_engine_version
+  node_type            = var.redis_node_type
+  port                 = var.redis_port
   parameter_group_name = aws_elasticache_parameter_group.redis.name
 
   # Cluster mode configuration (샤딩 활성화)
   cluster_mode {
-    num_node_groups         = 2  # 샤드 개수 (확장 가능)
-    replicas_per_node_group = 1  # 각 샤드당 replica 개수
+    num_node_groups         = var.redis_num_node_groups
+    replicas_per_node_group = var.redis_replicas_per_node_group
   }
 
-  automatic_failover_enabled = true
-  multi_az_enabled           = true
+  automatic_failover_enabled = var.redis_automatic_failover_enabled
+  multi_az_enabled           = var.redis_multi_az_enabled
 
   # Network configuration
   subnet_group_name  = aws_elasticache_subnet_group.redis.name
   security_group_ids = [aws_security_group.redis.id]
 
   # Maintenance and backup
-  maintenance_window       = "sun:05:00-sun:06:00"
-  snapshot_window          = "03:00-04:00"
-  snapshot_retention_limit = 1
+  maintenance_window       = var.redis_maintenance_window
+  snapshot_window          = var.redis_snapshot_window
+  snapshot_retention_limit = var.redis_snapshot_retention_limit
 
-  # Encryption
-  at_rest_encryption_enabled = true
-  transit_encryption_enabled = true
-
-  # Auth token for transit encryption (required when transit_encryption_enabled = true)
-  auth_token                 = var.redis_auth_token
-  auth_token_update_strategy = "ROTATE"
+  # Encryption (disabled for development)
+  at_rest_encryption_enabled = var.redis_at_rest_encryption_enabled
+  transit_encryption_enabled = var.redis_transit_encryption_enabled
 
   # Auto minor version upgrade
-  auto_minor_version_upgrade = false
+  auto_minor_version_upgrade = var.redis_auto_minor_version_upgrade
 
   tags = {
     Name        = "${var.project_name}-valkey"

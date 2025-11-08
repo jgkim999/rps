@@ -7,6 +7,7 @@
 - [아키텍처 개요](#아키텍처-개요)
 - [사전 요구사항](#사전-요구사항)
 - [인프라 구성 요소](#인프라-구성-요소)
+- [Terraform Backend 설정](#terraform-backend-설정)
 - [시작하기](#시작하기)
 - [배포 절차](#배포-절차)
 - [변수 설정 가이드](#변수-설정-가이드)
@@ -25,20 +26,25 @@ Route53 (DNS)
     ↓
 Application Load Balancer (HTTPS/SSL)
     ↓
-ECS Fargate Tasks (Rps Application) × 2
+ECS Fargate Tasks (Rps Web Application) × 2
     ↓
-├── ElastiCache Redis (캐싱 및 SignalR 백플레인)
+├── ElastiCache Valkey Cluster (캐싱 및 SignalR 백플레인)
+│   └── Cluster Mode: 2 샤드 × 2 노드 (primary + replica)
 └── Amazon MQ RabbitMQ (메시지 브로커)
+    ↑
+ECS Fargate Tasks (Game Server - Message Consumer) × 1
 ```
 
 ### 주요 구성 요소
 
 - **VPC**: 10.0.0.0/16 CIDR 블록, 2개 AZ에 걸친 public/private 서브넷
-- **ECR**: Docker 이미지 저장소
+- **ECR**: Docker 이미지 저장소 (rps-app, rps-game-server)
 - **ECS Fargate**: 서버리스 컨테이너 실행 환경
-- **Application Load Balancer**: HTTPS 트래픽 분산
-- **ElastiCache Redis**: 캐싱 및 SignalR 백플레인
-- **Amazon MQ RabbitMQ**: 메시지 브로커
+  - **Web Application**: ALB를 통한 HTTP/HTTPS 트래픽 처리
+  - **Game Server**: RabbitMQ 메시지 소비 및 게임 로직 처리
+- **Application Load Balancer**: HTTPS 트래픽 분산 (Web Application용)
+- **ElastiCache Valkey**: Cluster Mode 활성화, 샤딩 기반 자동 확장 지원
+- **Amazon MQ RabbitMQ**: 메시지 브로커 (단일 인스턴스, 개발 환경용)
 - **Route53 + ACM**: DNS 및 SSL 인증서 관리
 
 ## 사전 요구사항
@@ -97,20 +103,69 @@ ECS Fargate Tasks (Rps Application) × 2
 ```
 iac/
 ├── main.tf                 # Provider 및 메인 구성
+├── backend.tf              # Terraform Backend 설정 (S3 + DynamoDB)
+├── backend-setup.tf        # Backend 리소스 생성 (최초 1회)
 ├── variables.tf            # 입력 변수 정의
 ├── outputs.tf              # 출력 값 정의
 ├── vpc.tf                  # VPC, Subnets, IGW, NAT Gateway
 ├── security-groups.tf      # 모든 Security Groups
-├── ecr.tf                  # ECR Repository
-├── ecs.tf                  # ECS Cluster, Task Definition, Service
+├── ecr.tf                  # ECR Repository (Web App + Game Server)
+├── ecs.tf                  # ECS Cluster, Task Definition, Service (Web App + Game Server)
 ├── alb.tf                  # Application Load Balancer
-├── redis.tf                # ElastiCache Redis
+├── redis.tf                # ElastiCache Valkey (Cluster Mode, 암호화 비활성화)
 ├── rabbitmq.tf             # Amazon MQ RabbitMQ
 ├── route53.tf              # Route53 및 ACM Certificate
 ├── iam.tf                  # IAM Roles 및 Policies
 ├── Dockerfile              # Rps 애플리케이션 Docker 이미지
 ├── terraform.tfvars        # 변수 값 (gitignore, 직접 생성 필요)
-└── README.md               # 이 문서
+├── .terraform-version      # Terraform 버전 고정
+├── README.md               # 이 문서
+└── BACKEND_SETUP.md        # Backend 설정 상세 가이드
+```
+
+## Terraform Backend 설정
+
+### 팀 협업을 위한 원격 State 관리
+
+여러 사람이 동일한 인프라를 관리하려면 Terraform State를 원격으로 저장해야 합니다.
+
+**장점**:
+- ✅ 팀원 간 일관된 인프라 상태 공유
+- ✅ 동시 실행 방지 (State Locking)
+- ✅ State 파일 버전 관리 및 암호화
+- ✅ State 파일 분실 방지
+
+**비용**: ~$0.02/월 (거의 무료)
+
+### 빠른 설정
+
+```bash
+cd iac
+
+# 1. Backend 리소스 생성 (S3 + DynamoDB)
+terraform init
+terraform apply
+
+# 2. 출력된 backend_config 확인
+terraform output backend_config
+
+# 3. backend.tf 파일 수정 (실제 생성된 값으로)
+# 4. State 마이그레이션
+terraform init -migrate-state
+```
+
+**상세 가이드**: [BACKEND_SETUP.md](./BACKEND_SETUP.md) 참고
+
+### 로컬 State 사용 (개인 개발)
+
+팀 협업이 필요 없다면 backend 설정을 건너뛰고 로컬 state를 사용할 수 있습니다:
+
+```bash
+# backend.tf 비활성화
+mv backend.tf backend.tf.disabled
+
+# backend-setup.tf도 비활성화
+mv backend-setup.tf backend-setup.tf.disabled
 ```
 
 ## 시작하기
@@ -316,10 +371,15 @@ HTTPS 설정이 복잡하다면 개발 단계에서는 HTTP만 사용:
 | `aws_region` | `ap-northeast-2` | AWS 리전 |
 | `project_name` | `rps` | 프로젝트 이름 |
 | `environment` | `prod` | 환경 (dev, staging, prod) |
-| `ecs_desired_count` | `2` | ECS 태스크 수 |
-| `ecs_task_cpu` | `512` | ECS 태스크 CPU (0.5 vCPU) |
-| `ecs_task_memory` | `1024` | ECS 태스크 메모리 (1 GB) |
-| `redis_node_type` | `cache.t4g.micro` | Redis 인스턴스 타입 |
+| `ecs_desired_count` | `2` | Web App ECS 태스크 수 |
+| `ecs_task_cpu` | `512` | Web App ECS 태스크 CPU (0.5 vCPU) |
+| `ecs_task_memory` | `1024` | Web App ECS 태스크 메모리 (1 GB) |
+| `game_server_desired_count` | `1` | Game Server ECS 태스크 수 |
+| `game_server_task_cpu` | `256` | Game Server ECS 태스크 CPU (0.25 vCPU) |
+| `game_server_task_memory` | `512` | Game Server ECS 태스크 메모리 (512 MB) |
+| `redis_node_type` | `cache.t4g.micro` | Valkey 인스턴스 타입 |
+| `redis_num_node_groups` | `2` | Valkey 샤드(노드 그룹) 개수 |
+| `redis_replicas_per_node_group` | `1` | 각 샤드당 replica 개수 |
 | `rabbitmq_instance_type` | `mq.t3.micro` | RabbitMQ 인스턴스 타입 |
 
 ### 네트워크 변수
@@ -337,6 +397,8 @@ HTTPS 설정이 복잡하다면 개발 단계에서는 HTTP만 사용:
 |------|--------|------|
 | `rabbitmq_username` | `admin` | RabbitMQ 관리자 사용자명 |
 | `rabbitmq_password` | (자동 생성) | RabbitMQ 비밀번호 |
+
+**참고**: Valkey는 개발 환경을 위해 암호화 및 인증이 비활성화되어 있습니다. 프로덕션 환경에서는 TLS와 Auth Token을 활성화하는 것을 권장합니다.
 
 ## 애플리케이션 배포
 
@@ -714,14 +776,15 @@ aws ec2 describe-vpcs \
 
 | 서비스 | 리소스 | 예상 비용 |
 |--------|--------|-----------|
-| ECS Fargate | 2 tasks (0.5 vCPU, 1GB) | ~$30 |
+| ECS Fargate (Web App) | 2 tasks (0.5 vCPU, 1GB) | ~$30 |
+| ECS Fargate (Game Server) | 1 task (0.25 vCPU, 512MB) | ~$8 |
 | ALB | 1 ALB | ~$20 |
 | NAT Gateway | 1 NAT Gateway | ~$35 |
-| ElastiCache Redis | cache.t4g.micro × 2 | ~$25 |
-| Amazon MQ RabbitMQ | mq.t3.micro | ~$18 |
-| ECR | 10 images (~5GB) | ~$0.50 |
+| ElastiCache Valkey | cache.t4g.micro × 4 (2샤드 × 2노드) | ~$50 |
+| Amazon MQ RabbitMQ | mq.t3.micro (단일 인스턴스) | ~$18 |
+| ECR | 20 images (~10GB) | ~$1 |
 | Route53 | 1 hosted zone | ~$0.50 |
-| **총계** | | **~$129/월** |
+| **총계** | | **~$162/월** |
 
 ### 비용 절감 팁
 
@@ -729,7 +792,9 @@ aws ec2 describe-vpcs \
    ```hcl
    # terraform.tfvars (dev)
    ecs_desired_count = 1
-   redis_num_cache_clusters = 1
+   game_server_desired_count = 1
+   redis_num_node_groups = 1
+   redis_replicas_per_node_group = 0  # replica 없이 primary만
    ```
 
 2. **사용하지 않을 때 인프라 중지**:
@@ -738,6 +803,13 @@ aws ec2 describe-vpcs \
    aws ecs update-service \
      --cluster rps-prod-cluster \
      --service rps-prod-service \
+     --desired-count 0 \
+     --region ap-northeast-2
+   
+   # Game Server도 스케일 다운
+   aws ecs update-service \
+     --cluster rps-prod-cluster \
+     --service rps-prod-game-server \
      --desired-count 0 \
      --region ap-northeast-2
    ```
@@ -862,6 +934,102 @@ DuckDNS의 제약사항(TXT 레코드 미지원, CNAME 미지원) 때문에 **Cl
 2. CloudWatch Logs 확인
 3. AWS Support 또는 개발팀에 문의
 
+## 서비스별 상세 설명
+
+### Web Application (rps-app)
+
+- **역할**: HTTP/HTTPS 요청 처리, SignalR 실시간 통신
+- **배포 방식**: ALB를 통한 로드 밸런싱
+- **확장**: Horizontal Scaling (desired_count 조정)
+- **접속**: 외부 인터넷에서 도메인을 통해 접근 가능
+
+### Game Server (rps-game-server)
+
+- **역할**: RabbitMQ 메시지 소비, 게임 로직 처리
+- **배포 방식**: 백그라운드 워커 (ALB 없음)
+- **확장**: Horizontal Scaling (game_server_desired_count 조정)
+- **접속**: 외부 접근 불가, VPC 내부에서만 Redis/RabbitMQ 접근
+
+### ElastiCache Valkey (Cluster Mode)
+
+- **구성**: 2개 샤드 × 2개 노드 (primary + replica) = 총 4개 노드
+- **자동 확장**: 샤드 개수 증가로 수평 확장 가능 (수동)
+- **Failover**: 자동 장애 조치 활성화
+- **Multi-AZ**: 고가용성 보장
+- **접속**: Private subnet, ECS 태스크에서만 접근 가능
+- **엔드포인트**: Configuration Endpoint (Cluster Mode용)
+
+**확장 방법**:
+```hcl
+# terraform.tfvars
+redis_num_node_groups = 3  # 샤드 2개 → 3개로 증가
+```
+
+### Amazon MQ RabbitMQ
+
+- **구성**: 단일 인스턴스 (개발 환경용)
+- **사용자**: admin (자동 생성 비밀번호), guest/guest
+- **Failover**: 없음 (프로덕션에서는 CLUSTER_MULTI_AZ 권장)
+- **접속**: Private subnet, ECS 태스크에서만 접근 가능
+- **포트**: 5671 (AMQPS), 443 (Management Console)
+
+**프로덕션 전환 시**:
+```hcl
+# rabbitmq.tf
+deployment_mode    = "CLUSTER_MULTI_AZ"
+host_instance_type = "mq.m5.large"  # 최소 요구사항
+subnet_ids         = [aws_subnet.private[0].id, aws_subnet.private[1].id]
+```
+
+### 보안 구성
+
+**네트워크 격리**:
+- Web Application: Public subnet의 ALB → Private subnet의 ECS
+- Game Server: Private subnet에서만 실행
+- Valkey/RabbitMQ: Private subnet, Security Group으로 ECS만 접근 허용
+
+**데이터 암호화**:
+- Valkey: **개발 환경용으로 암호화 비활성화** (TLS/Auth Token 없음)
+  - 프로덕션 환경에서는 `at_rest_encryption_enabled = true`, `transit_encryption_enabled = true` 권장
+- RabbitMQ: AMQPS (TLS) 사용
+- ECR: 이미지 암호화 (AES256)
+
+**자격증명 관리**:
+- RabbitMQ 비밀번호: AWS Secrets Manager에 저장
+- Valkey: 인증 비활성화 (개발 환경용)
+
+**Terraform State 관리**:
+- S3: State 파일 암호화 및 버전 관리
+- DynamoDB: State Locking으로 동시 실행 방지
+- 팀 협업 시 일관된 인프라 상태 유지
+
+## 주요 변경 사항 (2025-11-09)
+
+### 1. Terraform Backend 설정 추가
+- **S3 + DynamoDB 원격 State 관리** 구성 추가
+- 팀 협업을 위한 State Locking 지원
+- State 파일 버전 관리 및 암호화
+- 상세 가이드: [BACKEND_SETUP.md](./BACKEND_SETUP.md)
+
+### 2. Redis/Valkey 보안 설정 변경
+- **개발 환경 최적화**: TLS 및 저장 시 암호화 비활성화
+- Auth Token 제거 (인증 불필요)
+- 프로덕션 환경에서는 암호화 재활성화 권장
+
+### 3. Game Server 추가
+- RabbitMQ 메시지 소비 전용 서비스
+- 별도 ECR 리포지토리 및 ECS 서비스
+- Redis/RabbitMQ 접근 가능한 백그라운드 워커
+
+### 4. Redis Cluster Mode 활성화
+- 샤딩 기반 수평 확장 지원
+- 2개 샤드 × 2개 노드 (primary + replica)
+- 변수로 샤드/replica 개수 조정 가능
+
+### 5. RabbitMQ 사용자 추가
+- guest/guest 사용자 추가 (개발 환경용)
+- 단일 인스턴스 구성 (비용 절감)
+
 ---
 
-**마지막 업데이트**: 2025-11-08
+**마지막 업데이트**: 2025-11-09

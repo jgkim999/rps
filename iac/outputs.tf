@@ -105,7 +105,7 @@ output "rabbitmq_credentials_secret_arn" {
 
 output "duckdns_setup_instructions" {
   description = "Instructions for setting up DuckDNS"
-  value = <<-EOT
+  value       = <<-EOT
     
     DuckDNS Setup Instructions (rps100.duckdns.org):
     
