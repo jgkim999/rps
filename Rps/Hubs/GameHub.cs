@@ -2,23 +2,18 @@ using LiteBus.Commands.Abstractions;
 using Microsoft.AspNetCore.SignalR;
 using Rps.Handlers.Commands;
 
-using ZiggyCreatures.Caching.Fusion;
-
 namespace Rps.Hubs;
 
 public class GameHub : Hub
 {
     private readonly ILogger<GameHub> _logger;
-    private readonly IServiceProvider _provider;
     private readonly ICommandMediator _commandMediator;
 
     public GameHub(
         ILogger<GameHub> logger,
-        IServiceProvider provider,
         ICommandMediator commandMediator)
     {
         _logger = logger;
-        _provider = provider;
         _commandMediator = commandMediator;
     }
 
@@ -26,39 +21,7 @@ public class GameHub : Hub
     {
         try
         {
-            _logger.LogInformation("Connected. ClientId:{ClientId}", Context.ConnectionId);
-
-            using var scope = _provider.CreateScope();
-            
-            try
-            {
-                IFusionCache? cache = scope.ServiceProvider.GetService<IFusionCache>();
-                if (cache is not null)
-                {
-                    await cache.SetAsync($"ConnectedClient-{Context.ConnectionId}", DateTimeOffset.UtcNow, TimeSpan.FromMinutes(60));
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to set cache for connected client: {ClientId}", Context.ConnectionId);
-                // Continue execution - cache failure is not critical
-            }
-
-            try
-            {
-                var redisManager = scope.ServiceProvider.GetService<RedisManager>();
-                var db = redisManager?.GetDatabase();
-                if (db != null)
-                {
-                    await db.SetAddAsync("Users", Context.ConnectionId);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to add user to Redis set for ClientId: {ClientId}", Context.ConnectionId);
-                // Continue execution - this will be retried on next operation
-            }
-
+            await _commandMediator.SendAsync(new ConnectCommand(Context.ConnectionId));
             try
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, "SignalR Users");
@@ -67,7 +30,6 @@ public class GameHub : Hub
             {
                 _logger.LogError(ex, "Failed to add client to SignalR group: {ClientId}", Context.ConnectionId);
             }
-
             await base.OnConnectedAsync();
         }
         catch (Exception ex)
@@ -89,37 +51,8 @@ public class GameHub : Hub
             {
                 _logger.LogInformation("Disconnected. ClientId:{ClientId}", Context.ConnectionId);
             }
-
-            using var scope = _provider.CreateScope();
             
-            try
-            {
-                var cache = scope.ServiceProvider.GetService<IFusionCache>();
-                if (cache is not null)
-                {
-                    await cache.RemoveAsync($"ConnectedClient-{Context.ConnectionId}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to remove cache for disconnected client: {ClientId}", Context.ConnectionId);
-                // Continue execution - cache cleanup failure is not critical
-            }
-
-            try
-            {
-                var redisManager = scope.ServiceProvider.GetService<RedisManager>();
-                var db = redisManager?.GetDatabase();
-                if (db != null)
-                {
-                    await db.SetRemoveAsync("Users", Context.ConnectionId);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to remove user from Redis set for ClientId: {ClientId}", Context.ConnectionId);
-                // Continue execution - cleanup will happen on next connection
-            }
+            await _commandMediator.SendAsync(new DisconnectCommand(Context.ConnectionId));
 
             await base.OnDisconnectedAsync(exception);
         }
