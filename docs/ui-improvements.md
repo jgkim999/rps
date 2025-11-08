@@ -271,8 +271,19 @@ dotnet build Rps.sln
 
 기존 SignalR 채팅 데모 페이지를 게임 랜딩 페이지로 전면 개편했습니다.
 
-1. **영웅 섹션 (Hero Section)**
-   - 🎮 바운스 애니메이션이 있는 게임 이모지
+1. **게임 소개 비디오 (intro.mp4)**
+   - 자동 재생, 루프, 음소거 설정
+   - 둥근 모서리 (border-radius: 20px)
+   - 그라데이션 테두리 효과
+   - 반응형 크기 조절:
+     - 데스크톱: 최대 400px
+     - 태블릿: 최대 320px
+     - 모바일: 최대 280px
+   - 비디오 로드 실패 시 이모지 폴백 (🎮)
+   - 검은 배경으로 로딩 상태 표시
+
+2. **영웅 섹션 (Hero Section)**
+   - ~~🎮 바운스 애니메이션이 있는 게임 이모지~~ → 비디오로 대체
    - 큰 그라데이션 타이틀: "가위바위보"
    - 환영 메시지: "실시간 멀티플레이어 가위바위보 게임에 오신 것을 환영합니다!"
 
@@ -300,11 +311,35 @@ dotnet build Rps.sln
    - 버튼 호버/활성화 효과
    - 기능 카드 호버 효과
 
+#### 비디오 HTML 코드
+
+```html
+<div class="intro-video-container">
+    <video class="intro-video" autoplay loop muted playsinline>
+        <source src="/images/intro.mp4" type="video/mp4">
+        <!-- 비디오 로드 실패 시 폴백 -->
+        <div class="video-fallback game-emoji">🎮</div>
+    </video>
+</div>
+```
+
+**비디오 속성**:
+- `autoplay`: 페이지 로드 시 자동 재생
+- `loop`: 무한 반복
+- `muted`: 음소거 (자동재생을 위해 필수)
+- `playsinline`: iOS에서 인라인 재생 (전체화면 방지)
+
 #### 스크린샷 예상
 ```
 ┌──────────────────────────────────────────────┐
 │                                              │
-│                    🎮                        │
+│          ┌──────────────────┐               │
+│          │                  │               │
+│          │   [intro.mp4]    │               │
+│          │   게임 소개      │               │
+│          │   비디오 재생    │               │
+│          │                  │               │
+│          └──────────────────┘               │
 │                                              │
 │              가위바위보                       │
 │                                              │
@@ -354,7 +389,7 @@ dotnet build Rps.sln
 }
 ```
 
-**바운스**:
+**바운스** (폴백 이모지용):
 ```css
 @keyframes bounce {
     0%, 100% {
@@ -363,6 +398,28 @@ dotnet build Rps.sln
     50% {
         transform: translateY(-10px);
     }
+}
+```
+
+**비디오 컨테이너 스타일**:
+```css
+.intro-video-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto 30px auto;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 3px;  /* 그라데이션 테두리 효과 */
+}
+
+.intro-video {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 17px;
+    background: #000;  /* 로딩 중 검은 배경 */
 }
 ```
 

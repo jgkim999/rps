@@ -63,6 +63,29 @@
         }
     }
 
+    .intro-video-container {
+        width: 100%;
+        max-width: 400px;
+        margin: 0 auto 30px auto;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 3px;
+    }
+
+    .intro-video {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 17px;
+        background: #000;
+    }
+
+    .video-fallback {
+        display: none;
+    }
+
     .feature-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -131,6 +154,10 @@
             font-size: 4rem;
         }
 
+        .intro-video-container {
+            max-width: 320px;
+        }
+
         .feature-grid {
             grid-template-columns: 1fr;
             gap: 15px;
@@ -159,6 +186,10 @@
             font-size: 3.5rem;
         }
 
+        .intro-video-container {
+            max-width: 280px;
+        }
+
         .feature-icon {
             font-size: 2.5rem;
         }
@@ -172,7 +203,14 @@
 
 <div class="home-container">
     <div class="home-card">
-        <div class="game-emoji">🎮</div>
+        <!-- 게임 소개 비디오 -->
+        <div class="intro-video-container">
+            <video class="intro-video" autoplay loop muted playsinline>
+                <source src="/images/intro.mp4" type="video/mp4">
+                <!-- 비디오 로드 실패 시 폴백 -->
+                <div class="video-fallback game-emoji">🎮</div>
+            </video>
+        </div>
 
         <h1 class="game-title">가위바위보</h1>
 
