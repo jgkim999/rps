@@ -6,9 +6,12 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Rps;
-using Rps.Configs;
+using Rps.Handlers;
 using Rps.Hubs;
-
+using Rps.Share;
+using Rps.Share.Configs;
+using Rps.Share.MessageBroker;
+using Rps.Share.Telemetry;
 using Serilog;
 
 using StackExchange.Redis;
@@ -63,7 +66,7 @@ try
     ConfigurationOptions redisOptions = new()
     {
         EndPoints = { redisConfig.FusionCacheRedisCache },
-        ChannelPrefix = environment,
+        ChannelPrefix = RedisChannel.Literal(environment),
         AbortOnConnectFail = false
     };
 
@@ -129,6 +132,27 @@ try
 
     #endregion
 
+    #region RabbitMQ
+
+    var rabbitMqConfig = builder.Configuration.GetSection("RabbitMQ").Get<RabbitMqConfig>();
+    if (rabbitMqConfig is null)
+        throw new NullReferenceException();
+    builder.Services.Configure<RabbitMqConfig>(builder.Configuration.GetSection("RabbitMQ"));
+    
+    builder.Services.AddSingleton<RabbitMqConnection>();
+    builder.Services.AddSingleton<RabbitMqHandler>();
+    builder.Services.AddSingleton<IMqMessageHandler, LobbyMqHandler>();
+    builder.Services.AddSingleton<IMqPublishService, RabbitMqPublishService>();
+    builder.Services.AddHostedService<RabbitMqConsumerService>();
+
+    #endregion
+
+    builder.Services.AddSingleton<ITelemetryService>(sp =>
+    {
+        var logger = sp.GetRequiredService<ILogger<TelemetryService>>();
+        return new TelemetryService("Rps", "1.0.0", logger);
+    });
+
     // Add services to the container.
     builder.Services.AddRazorPages();
     builder.Services.AddRazorComponents()
@@ -188,7 +212,7 @@ try
         .AddStackExchangeRedis(redisConfig.SignalRBackplane, options =>
         {
             options.Configuration.ConnectRetry = 5;
-            options.Configuration.ChannelPrefix = $"{environment}.";
+            options.Configuration.ChannelPrefix = RedisChannel.Literal($"{environment}.");
             if (builder.Environment.IsProduction())
             {
                 options.Configuration.Ssl = true;

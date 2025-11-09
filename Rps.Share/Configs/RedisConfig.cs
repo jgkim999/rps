@@ -1,4 +1,4 @@
-﻿namespace Rps.Configs;
+﻿namespace Rps.Share.Configs;
 
 public class RedisConfig
 {

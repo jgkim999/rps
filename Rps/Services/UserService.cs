@@ -1,4 +1,5 @@
 using Rps.Models;
+using Rps.Share;
 using StackExchange.Redis;
 
 namespace Rps.Services;

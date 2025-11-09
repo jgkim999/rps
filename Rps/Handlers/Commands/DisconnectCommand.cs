@@ -1,4 +1,5 @@
 using LiteBus.Commands.Abstractions;
+using Rps.Share;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace Rps.Handlers.Commands;

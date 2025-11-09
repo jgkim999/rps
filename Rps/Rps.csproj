@@ -28,10 +28,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Handlers\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\Rps.Share\Rps.Share.csproj" />
     </ItemGroup>
 

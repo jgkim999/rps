@@ -180,7 +180,7 @@
     private string skinMessageType = "";
     private DotNetObjectReference<Lobby>? objRef;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
         // Parse query parameters
         var uri = new Uri(NavigationManager.Uri);

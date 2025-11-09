@@ -1,7 +1,7 @@
 ﻿using StackExchange.Redis;
 using StackExchange.Redis.KeyspaceIsolation;
 
-namespace Rps;
+namespace Rps.Share;
 
 public class RedisManager
 {
